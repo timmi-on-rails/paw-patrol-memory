@@ -1,0 +1,18 @@
+{
+  "name": "paw-patrol-memory",
+  "version": "1.0.0",
+  "description": "Memory game with paw patrol",
+  "source": "src/index.html",
+  "scripts": {
+    "elm": "elm",
+    "start": "parcel",
+    "build": "parcel build"
+  },
+  "author": "Tom Scheler",
+  "license": "MIT",
+  "devDependencies": {
+    "@parcel/transformer-elm": "^2.10.3",
+    "elm": "^0.19.1-6",
+    "parcel": "^2.10.3"
+  }
+}
