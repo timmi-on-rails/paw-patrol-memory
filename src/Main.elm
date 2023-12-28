@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (div, text)
+import Html exposing (button, div, text)
 import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick)
 import Process
@@ -38,12 +38,6 @@ allCards =
     ]
 
 
-type Place
-    = Empty
-    | Hidden Card
-    | Open Card
-
-
 main : Program () Model Msg
 main =
     Browser.element
@@ -70,6 +64,13 @@ type Model
     = ShufflingCards
     | WaitForClick GameData
     | Freeze GameData
+    | Finished GameResult
+
+
+type alias GameResult =
+    { mayorGoodway : List Card
+    , mayorHumdinger : List Card
+    }
 
 
 type alias GameData =
@@ -78,10 +79,18 @@ type alias GameData =
     }
 
 
+type Place
+    = TakenByMayorGoodway Card
+    | TakenByMayorHumdinger Card
+    | Hidden Card
+    | Open Card
+
+
 type Msg
     = NewCards (List Card)
     | CardClicked Int
     | Turn
+    | NewGame
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -116,7 +125,58 @@ update msg model =
                 ( WaitForClick newGameData, Cmd.none )
 
         ( Freeze g, Turn ) ->
-            ( WaitForClick <| processTurn g, Cmd.none )
+            let
+                newGame =
+                    processTurn g
+
+                finished =
+                    newGame.places
+                        |> List.all
+                            (\x ->
+                                case x of
+                                    TakenByMayorGoodway _ ->
+                                        True
+
+                                    TakenByMayorHumdinger _ ->
+                                        True
+
+                                    _ ->
+                                        False
+                            )
+            in
+            if finished then
+                ( Finished
+                    { mayorGoodway =
+                        newGame.places
+                            |> List.filterMap
+                                (\x ->
+                                    case x of
+                                        TakenByMayorGoodway c ->
+                                            Just c
+
+                                        _ ->
+                                            Nothing
+                                )
+                    , mayorHumdinger =
+                        newGame.places
+                            |> List.filterMap
+                                (\x ->
+                                    case x of
+                                        TakenByMayorHumdinger c ->
+                                            Just c
+
+                                        _ ->
+                                            Nothing
+                                )
+                    }
+                , Cmd.none
+                )
+
+            else
+                ( WaitForClick <| newGame, Cmd.none )
+
+        ( Finished _, NewGame ) ->
+            init ()
 
         _ ->
             ( model, Cmd.none )
@@ -143,7 +203,12 @@ processTurn g =
                     case ( p, winCard ) of
                         ( Open c, Just wc ) ->
                             if wc == c then
-                                Empty
+                                case g.turn of
+                                    MayorGoodway ->
+                                        TakenByMayorGoodway c
+
+                                    MayorHumdinger ->
+                                        TakenByMayorHumdinger c
 
                             else
                                 Hidden c
@@ -228,8 +293,20 @@ view model =
         Freeze g ->
             viewGame g
 
+        Finished g ->
+            viewFinish g
+
         _ ->
             text "unexpected state"
+
+
+viewFinish : GameResult -> Html.Html Msg
+viewFinish res =
+    div []
+        [ text <| "Mayor Goodway: " ++ String.fromInt (List.length res.mayorGoodway)
+        , text <| "Mayor Humdinger: " ++ String.fromInt (List.length res.mayorHumdinger)
+        , button [ onClick NewGame ] [ text "Again" ]
+        ]
 
 
 viewGame : GameData -> Html.Html Msg
@@ -260,7 +337,10 @@ viewPlace index place =
     div
         (onClick (CardClicked index)
             :: (case place of
-                    Empty ->
+                    TakenByMayorGoodway _ ->
+                        []
+
+                    TakenByMayorHumdinger _ ->
                         []
 
                     Hidden _ ->
