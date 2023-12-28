@@ -1,6 +1,6 @@
 .card-container {
     display: grid;
-    grid-template-columns:  repeat(5, min-content);
+    grid-template-columns: repeat(5, min-content);
     grid-gap: 10px;
 }
 
@@ -8,6 +8,10 @@
     border: 1px solid grey;
     width: 125px;
     height: 125px;
+}
+
+.card-missing {
+    border: none !important;
 }
 
 .card-hidden {
@@ -23,33 +27,33 @@
 }
 
 .card-chase {
-    content:  url('images/chase.jpg');
+    content: url('images/chase.jpg');
 }
 
 .card-rocky {
-    content:  url('images/rocky.webp');
+    content: url('images/rocky.webp');
 }
 
 .card-zuma {
-    content:  url('images/zuma.webp');
+    content: url('images/zuma.webp');
 }
 
 .card-skye {
-    content:  url('images/skye.jpg');
+    content: url('images/skye.jpg');
 }
 
 .card-everest {
-    content:  url('images/everest.png');
+    content: url('images/everest.png');
 }
 
 .card-tracker {
-    content:  url('images/tracker.jpg');
+    content: url('images/tracker.jpg');
 }
 
 .card-rex {
-    content:  url('images/rex.webp');
+    content: url('images/rex.webp');
 }
 
 .card-liberty {
-    content:  url('images/liberty.png');
+    content: url('images/liberty.png');
 }

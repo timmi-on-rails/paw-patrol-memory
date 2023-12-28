@@ -303,8 +303,8 @@ view model =
 viewFinish : GameResult -> Html.Html Msg
 viewFinish res =
     div []
-        [ text <| "Mayor Goodway: " ++ String.fromInt (List.length res.mayorGoodway)
-        , text <| "Mayor Humdinger: " ++ String.fromInt (List.length res.mayorHumdinger)
+        [ text <| "Mayor Goodway: " ++ String.fromInt (List.length res.mayorGoodway // 2)
+        , text <| "Mayor Humdinger: " ++ String.fromInt (List.length res.mayorHumdinger // 2)
         , button [ onClick NewGame ] [ text "Again" ]
         ]
 
@@ -338,10 +338,10 @@ viewPlace index place =
         (onClick (CardClicked index)
             :: (case place of
                     TakenByMayorGoodway _ ->
-                        []
+                        [ class "card", class "card-missing" ]
 
                     TakenByMayorHumdinger _ ->
-                        []
+                        [ class "card", class "card-missing" ]
 
                     Hidden _ ->
                         [ class "card", class "card-hidden" ]
