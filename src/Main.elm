@@ -105,10 +105,10 @@ update msg model =
                 , Task.perform (\_ -> Turn) <|
                     Process.sleep
                         (if isMatch newGameData.places then
-                            1000
+                            500
 
                          else
-                            3000
+                            2000
                         )
                 )
 
@@ -116,16 +116,56 @@ update msg model =
                 ( WaitForClick newGameData, Cmd.none )
 
         ( Freeze g, Turn ) ->
-            ( WaitForClick
-                { g
-                    | places = hideAll g.places
-                    , turn = next g.turn
-                }
-            , Cmd.none
-            )
+            ( WaitForClick <| processTurn g, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
+
+
+processTurn : GameData -> GameData
+processTurn g =
+    let
+        winCard =
+            case visibleCards g.places of
+                [] ->
+                    Nothing
+
+                y :: ys ->
+                    if List.all ((==) y) ys then
+                        Just y
+
+                    else
+                        Nothing
+
+        newPlaces =
+            List.map
+                (\p ->
+                    case ( p, winCard ) of
+                        ( Open c, Just wc ) ->
+                            if wc == c then
+                                Empty
+
+                            else
+                                Hidden c
+
+                        ( Open c, Nothing ) ->
+                            Hidden c
+
+                        _ ->
+                            p
+                )
+                g.places
+    in
+    { g
+        | places = newPlaces
+        , turn =
+            case winCard of
+                Just _ ->
+                    g.turn
+
+                Nothing ->
+                    next g.turn
+    }
 
 
 showCard : Int -> List Place -> List Place
@@ -142,19 +182,6 @@ showCard index =
 
             else
                 p
-        )
-
-
-hideAll : List Place -> List Place
-hideAll =
-    List.map
-        (\p ->
-            case p of
-                Open c ->
-                    Hidden c
-
-                _ ->
-                    p
         )
 
 
@@ -207,31 +234,42 @@ view model =
 
 viewGame : GameData -> Html.Html Msg
 viewGame g =
-    div
-        [ style "display" "grid"
-        , style "grid-template-columns" "repeat(5, min-content)"
-        , style "grid-gap" "10px"
+    div []
+        [ viewTurn g.turn
+        , div
+            [ style "display" "grid"
+            , style "grid-template-columns" "repeat(5, min-content)"
+            , style "grid-gap" "10px"
+            ]
+            (g.places |> List.indexedMap viewPlace)
         ]
-        (g.places |> List.indexedMap viewPlace)
+
+
+viewTurn : Turn -> Html.Html msg
+viewTurn t =
+    case t of
+        MayorGoodway ->
+            text "Bürgermeisterin Gutherz"
+
+        MayorHumdinger ->
+            text "Bürgermeister Besserwisser"
 
 
 viewPlace : Int -> Place -> Html.Html Msg
 viewPlace index place =
     div
-        [ onClick (CardClicked index)
-        , class "card"
-        , class
-            (case place of
-                Empty ->
-                    "empty"
+        (onClick (CardClicked index)
+            :: (case place of
+                    Empty ->
+                        []
 
-                Hidden _ ->
-                    "card-hidden"
+                    Hidden _ ->
+                        [ class "card", class "card-hidden" ]
 
-                Open card ->
-                    cardToClass card
-            )
-        ]
+                    Open card ->
+                        [ class "card", class <| cardToClass card ]
+               )
+        )
         []
 
 
