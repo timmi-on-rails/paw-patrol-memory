@@ -303,8 +303,8 @@ view model =
 viewFinish : GameResult -> Html.Html Msg
 viewFinish res =
     div []
-        [ text <| "Mayor Goodway: " ++ String.fromInt (List.length res.mayorGoodway // 2)
-        , text <| "Mayor Humdinger: " ++ String.fromInt (List.length res.mayorHumdinger // 2)
+        [ text <| "Mayor Gutherz: " ++ String.fromInt (List.length res.mayorGoodway // 2)
+        , text <| "Mayor Besserwisser: " ++ String.fromInt (List.length res.mayorHumdinger // 2)
         , button [ onClick NewGame ] [ text "Again" ]
         ]
 
