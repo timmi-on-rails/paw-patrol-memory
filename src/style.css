@@ -1,3 +1,21 @@
+.avatar {
+    border: 5px solid blue;
+    height: 150px;
+}
+
+.avatar-humdinger {
+    content: url('images/humdinger.webp');
+}
+
+.avatar-goodway {
+    content: url('images/goodway.webp');
+}
+
+.avatar-inactive {
+    opacity: 0.3;
+    filter: grayscale(100%);
+}
+
 .card-container {
     display: grid;
     grid-template-columns: repeat(5, min-content);
