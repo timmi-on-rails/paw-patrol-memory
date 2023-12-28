@@ -1,6 +1,5 @@
 module Main exposing (main)
 
-import Bitwise exposing (and)
 import Browser
 import Html exposing (div, text)
 import Html.Attributes exposing (class, style)
@@ -69,7 +68,8 @@ type Turn
 
 type Model
     = ShufflingCards
-    | Game GameData
+    | WaitForClick GameData
+    | Freeze GameData
 
 
 type alias GameData =
@@ -86,57 +86,46 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        NewCards cards ->
-            ( Game
+    case ( model, msg ) of
+        ( ShufflingCards, NewCards cards ) ->
+            ( WaitForClick
                 { places = cards |> List.map Hidden
                 , turn = MayorGoodway
                 }
             , Cmd.none
             )
 
-        CardClicked index ->
-            case model of
-                Game g ->
-                    if List.length (visibleCards g.places) < 2 then
-                        let
-                            newGameData =
-                                { g | places = showCard index g.places }
-                        in
-                        ( Game newGameData
-                        , if List.length (visibleCards newGameData.places) > 1 then
-                            Task.perform (\_ -> Turn) <|
-                                Process.sleep
-                                    (if isMatch newGameData.places then
-                                        1000
+        ( WaitForClick g, CardClicked index ) ->
+            let
+                newGameData =
+                    { g | places = showCard index g.places }
+            in
+            if List.length (visibleCards newGameData.places) > 1 then
+                ( Freeze newGameData
+                , Task.perform (\_ -> Turn) <|
+                    Process.sleep
+                        (if isMatch newGameData.places then
+                            1000
 
-                                     else
-                                        3000
-                                    )
-
-                          else
-                            Cmd.none
+                         else
+                            3000
                         )
+                )
 
-                    else
-                        ( model, Cmd.none )
+            else
+                ( WaitForClick newGameData, Cmd.none )
 
-                _ ->
-                    ( model, Cmd.none )
+        ( Freeze g, Turn ) ->
+            ( WaitForClick
+                { g
+                    | places = hideAll g.places
+                    , turn = next g.turn
+                }
+            , Cmd.none
+            )
 
-        Turn ->
-            case model of
-                Game g ->
-                    ( Game
-                        { g
-                            | places = hideAll g.places
-                            , turn = next g.turn
-                        }
-                    , Cmd.none
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
+        _ ->
+            ( model, Cmd.none )
 
 
 showCard : Int -> List Place -> List Place
@@ -206,16 +195,24 @@ next turn =
 view : Model -> Html.Html Msg
 view model =
     case model of
-        Game g ->
-            div
-                [ style "display" "grid"
-                , style "grid-template-columns" "repeat(5, min-content)"
-                , style "grid-gap" "10px"
-                ]
-                (g.places |> List.indexedMap viewPlace)
+        WaitForClick g ->
+            viewGame g
+
+        Freeze g ->
+            viewGame g
 
         _ ->
-            text "test"
+            text "unexpected state"
+
+
+viewGame : GameData -> Html.Html Msg
+viewGame g =
+    div
+        [ style "display" "grid"
+        , style "grid-template-columns" "repeat(5, min-content)"
+        , style "grid-gap" "10px"
+        ]
+        (g.places |> List.indexedMap viewPlace)
 
 
 viewPlace : Int -> Place -> Html.Html Msg
