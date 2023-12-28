@@ -2,7 +2,7 @@ module Main exposing (main)
 
 import Browser
 import Html exposing (button, div, text)
-import Html.Attributes exposing (class, classList, style)
+import Html.Attributes exposing (class, classList)
 import Html.Events exposing (onClick)
 import Process
 import Random
@@ -312,25 +312,13 @@ viewFinish res =
 viewGame : GameData -> Html.Html Msg
 viewGame g =
     div
-        [ style "position" "absolute"
-        , style "top" "50%"
-        , style "left" "50%"
-        , style "transform" "translate(-50%, -50%)"
-        ]
-        [ div
-            [ style "display" "flex"
-            , style "align-items" "center"
-            , style "margin-bottom" "10px"
-            , style "justify-content" "space-between"
-            ]
+        [ class "main-container" ]
+        [ div [ class "mayor-row" ]
             [ viewAvatar "goodway" (g.turn == MayorGoodway)
             , viewAvatar "humdinger" (g.turn == MayorHumdinger)
             ]
         , div
-            [ style "display" "grid"
-            , style "grid-template-columns" "repeat(5, min-content)"
-            , style "grid-gap" "10px"
-            ]
+            [ class "card-container" ]
             (g.places |> List.indexedMap viewPlace)
         ]
 
