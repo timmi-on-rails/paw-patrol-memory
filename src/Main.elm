@@ -10,7 +10,7 @@ import Random.List
 import Task
 
 
-type Card
+type Pup
     = Rubble
     | Zuma
     | Chase
@@ -23,8 +23,8 @@ type Card
     | Liberty
 
 
-allCards : List Card
-allCards =
+allPups : List Pup
+allPups =
     [ Rubble
     , Zuma
     , Chase
@@ -50,38 +50,38 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( ShufflingCards
-    , Random.generate NewCards (Random.List.shuffle (allCards ++ allCards))
+    ( ShufflingPups
+    , Random.generate ShuffledPups (Random.List.shuffle (allPups ++ allPups))
     )
 
 
-type Turn
+type Player
     = MayorGoodway
     | MayorHumdinger
 
 
 type Model
-    = ShufflingCards
+    = ShufflingPups
     | WaitForClick GameData
     | Freeze GameData
-    | Finished GameData
+    | GameOver GameData
 
 
 type alias GameData =
-    { places : List Place
-    , turn : Turn
+    { places : List Tile
+    , currentPlayer : Player
     }
 
 
-type Place
-    = TakenByMayorGoodway Card
-    | TakenByMayorHumdinger Card
-    | Hidden Card
-    | Open Card
+type Tile
+    = TakenByMayorGoodway Pup
+    | TakenByMayorHumdinger Pup
+    | Hidden Pup
+    | Open Pup
 
 
 type Msg
-    = NewCards (List Card)
+    = ShuffledPups (List Pup)
     | CardClicked Int
     | Turn
     | NewGame
@@ -129,10 +129,10 @@ gameMode g =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
-        ( ShufflingCards, NewCards cards ) ->
+        ( ShufflingPups, ShuffledPups cards ) ->
             ( WaitForClick
                 { places = cards |> List.map Hidden
-                , turn = MayorGoodway
+                , currentPlayer = MayorGoodway
                 }
             , Cmd.none
             )
@@ -168,14 +168,14 @@ update msg model =
             in
             ( case gameMode newGame of
                 FinishedTotal ->
-                    Finished newGame
+                    GameOver newGame
 
                 _ ->
                     WaitForClick <| newGame
             , Cmd.none
             )
 
-        ( Finished _, NewGame ) ->
+        ( GameOver _, NewGame ) ->
             init ()
 
         _ ->
@@ -193,7 +193,7 @@ processTurn g =
                 (\p ->
                     case ( p, gMode ) of
                         ( Open c, TurnWin ) ->
-                            case g.turn of
+                            case g.currentPlayer of
                                 MayorGoodway ->
                                     TakenByMayorGoodway c
 
@@ -210,20 +210,20 @@ processTurn g =
     in
     { g
         | places = newPlaces
-        , turn =
+        , currentPlayer =
             case gMode of
                 TurnWin ->
-                    next g.turn
+                    next g.currentPlayer
 
                 TurnLoose ->
-                    next g.turn
+                    next g.currentPlayer
 
                 _ ->
-                    g.turn
+                    g.currentPlayer
     }
 
 
-showCard : Int -> List Place -> List Place
+showCard : Int -> List Tile -> List Tile
 showCard index =
     List.indexedMap
         (\i p ->
@@ -240,7 +240,7 @@ showCard index =
         )
 
 
-visibleCards : List Place -> List Card
+visibleCards : List Tile -> List Pup
 visibleCards =
     List.filterMap
         (\place ->
@@ -253,7 +253,7 @@ visibleCards =
         )
 
 
-next : Turn -> Turn
+next : Player -> Player
 next turn =
     case turn of
         MayorGoodway ->
@@ -272,7 +272,7 @@ view model =
         Freeze g ->
             viewGame g
 
-        Finished g ->
+        GameOver g ->
             viewFinish g
 
         _ ->
@@ -325,8 +325,8 @@ viewGame g =
     div
         [ class "main-container" ]
         [ div [ class "mayor-row" ]
-            [ viewAvatar "goodway" (g.turn == MayorGoodway)
-            , viewAvatar "humdinger" (g.turn == MayorHumdinger)
+            [ viewAvatar "goodway" (g.currentPlayer == MayorGoodway)
+            , viewAvatar "humdinger" (g.currentPlayer == MayorHumdinger)
             ]
         , div
             [ class "card-container" ]
@@ -344,7 +344,7 @@ viewAvatar cl active =
         []
 
 
-viewPlace : Int -> Place -> Html.Html Msg
+viewPlace : Int -> Tile -> Html.Html Msg
 viewPlace index place =
     div
         (onClick (CardClicked index)
@@ -365,7 +365,7 @@ viewPlace index place =
         []
 
 
-cardToClass : Card -> String
+cardToClass : Pup -> String
 cardToClass card =
     case card of
         Rubble ->
