@@ -216,9 +216,6 @@ processTurn g =
         | tiles = newPlaces
         , currentPlayer =
             case gMode of
-                TurnWin ->
-                    next g.currentPlayer
-
                 TurnLoose ->
                     next g.currentPlayer
 
