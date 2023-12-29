@@ -1,28 +1,28 @@
 -- Abstract memory game model
 
 
-module Memory exposing (GameData, GameMode(..), Tile(..), currentPlayer, gameMode, init, processTurn, showCard, tiles)
+module Memory exposing (GameMode(..), Model, Tile(..), currentPlayer, gameMode, init, processTurn, showCard, tiles)
 
 
-type alias Nonempty a =
+type alias NonEmpty a =
     ( a, List a )
 
 
-type GameData a b
-    = GameData
+type Model a b
+    = Model
         { tiles : List (Tile a b)
-        , players : Nonempty b
+        , players : NonEmpty b
         }
 
 
-tiles : GameData a b -> List (Tile a b)
-tiles (GameData g) =
+tiles : Model a b -> List (Tile a b)
+tiles (Model g) =
     g.tiles
 
 
-init : List a -> Nonempty b -> GameData a b
+init : List a -> NonEmpty b -> Model a b
 init t players =
-    GameData
+    Model
         { tiles = t |> List.map Hidden
         , players = players
         }
@@ -41,8 +41,8 @@ type GameMode
     | GameOver
 
 
-gameMode : GameData a b -> GameMode
-gameMode (GameData g) =
+gameMode : Model a b -> GameMode
+gameMode (Model g) =
     let
         visibleCards : List (Tile a b) -> List a
         visibleCards =
@@ -83,7 +83,7 @@ gameMode (GameData g) =
                 NextCard
 
 
-processTurn : GameData a b -> GameData a b
+processTurn : Model a b -> Model a b
 processTurn g =
     let
         gMode =
@@ -104,10 +104,10 @@ processTurn g =
                 )
                 (tiles g)
 
-        (GameData gd) =
+        (Model gd) =
             g
     in
-    GameData
+    Model
         { gd
             | tiles = newPlaces
             , players =
@@ -120,14 +120,14 @@ processTurn g =
         }
 
 
-currentPlayer : GameData a b -> b
-currentPlayer (GameData a) =
+currentPlayer : Model a b -> b
+currentPlayer (Model a) =
     a.players |> Tuple.first
 
 
-showCard : Int -> GameData a b -> GameData a b
-showCard index (GameData g) =
-    GameData
+showCard : Int -> Model a b -> Model a b
+showCard index (Model g) =
+    Model
         { g
             | tiles =
                 g.tiles
@@ -147,7 +147,7 @@ showCard index (GameData g) =
         }
 
 
-next : Nonempty a -> Nonempty a
+next : NonEmpty a -> NonEmpty a
 next ( head, tail ) =
     case tail of
         x :: xs ->

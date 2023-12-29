@@ -4,7 +4,7 @@ import Browser
 import Html exposing (button, div, text)
 import Html.Attributes exposing (class, classList)
 import Html.Events exposing (onClick)
-import Memory exposing (GameData, GameMode(..), Tile(..), gameMode, processTurn, showCard)
+import Memory
 import Process
 import Random
 import Random.List
@@ -63,16 +63,16 @@ type Player
 
 type Model
     = ShufflingTiles
-    | WaitForClick (GameData Pup Player)
-    | Freeze (GameData Pup Player)
-    | GameOver (GameData Pup Player)
+    | WaitForClick (Memory.Model Pup Player)
+    | Freeze (Memory.Model Pup Player)
+    | GameOver (Memory.Model Pup Player)
 
 
 type Msg
     = ShuffledTiles (List Pup)
     | CardClicked Int
     | Turn
-    | NewGame
+    | RestartGame
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -86,22 +86,22 @@ update msg model =
         ( WaitForClick g, CardClicked index ) ->
             let
                 newGameData =
-                    showCard index g
+                    Memory.showCard index g
             in
-            case gameMode newGameData of
-                TurnWin ->
+            case Memory.gameMode newGameData of
+                Memory.TurnWin ->
                     ( Freeze newGameData
                     , Task.perform (\_ -> Turn) <|
                         Process.sleep 500
                     )
 
-                TurnLoose ->
+                Memory.TurnLoose ->
                     ( Freeze newGameData
                     , Task.perform (\_ -> Turn) <|
                         Process.sleep 2000
                     )
 
-                NextCard ->
+                Memory.NextCard ->
                     ( WaitForClick newGameData, Cmd.none )
 
                 Memory.GameOver ->
@@ -110,9 +110,9 @@ update msg model =
         ( Freeze g, Turn ) ->
             let
                 newGame =
-                    processTurn g
+                    Memory.processTurn g
             in
-            ( case gameMode newGame of
+            ( case Memory.gameMode newGame of
                 Memory.GameOver ->
                     GameOver newGame
 
@@ -121,7 +121,7 @@ update msg model =
             , Cmd.none
             )
 
-        ( GameOver _, NewGame ) ->
+        ( GameOver _, RestartGame ) ->
             init ()
 
         _ ->
@@ -144,7 +144,7 @@ view model =
             text "unexpected state"
 
 
-viewFinish : GameData a Player -> Html.Html Msg
+viewFinish : Memory.Model a Player -> Html.Html Msg
 viewFinish g =
     div []
         [ text <|
@@ -154,7 +154,7 @@ viewFinish g =
                         |> List.map
                             (\x ->
                                 case x of
-                                    Taken player _ ->
+                                    Memory.Taken player _ ->
                                         if player == MayorGoodway then
                                             1
 
@@ -175,7 +175,7 @@ viewFinish g =
                         |> List.map
                             (\x ->
                                 case x of
-                                    Taken player _ ->
+                                    Memory.Taken player _ ->
                                         if player == MayorHumdinger then
                                             1
 
@@ -189,11 +189,11 @@ viewFinish g =
                      )
                         // 2
                     )
-        , button [ onClick NewGame ] [ text "Again" ]
+        , button [ onClick RestartGame ] [ text "Again" ]
         ]
 
 
-viewGame : GameData Pup Player -> Html.Html Msg
+viewGame : Memory.Model Pup Player -> Html.Html Msg
 viewGame g =
     div
         [ class "main-container" ]
@@ -203,7 +203,7 @@ viewGame g =
             ]
         , div
             [ class "card-container" ]
-            (Memory.tiles g |> List.indexedMap viewPlace)
+            (Memory.tiles g |> List.indexedMap viewTile)
         ]
 
 
@@ -217,18 +217,18 @@ viewAvatar cl active =
         []
 
 
-viewPlace : Int -> Tile Pup Player -> Html.Html Msg
-viewPlace index place =
+viewTile : Int -> Memory.Tile Pup Player -> Html.Html Msg
+viewTile index tile =
     div
         (onClick (CardClicked index)
-            :: (case place of
-                    Taken _ _ ->
+            :: (case tile of
+                    Memory.Taken _ _ ->
                         [ class "card", class "card-missing" ]
 
-                    Hidden _ ->
+                    Memory.Hidden _ ->
                         [ class "card", class "card-hidden" ]
 
-                    Open card ->
+                    Memory.Open card ->
                         [ class "card", class <| cssClass card ]
                )
         )
