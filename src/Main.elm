@@ -50,8 +50,8 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( ShufflingPups
-    , Random.generate ShuffledPups (Random.List.shuffle (allPups ++ allPups))
+    ( ShufflingTiles
+    , Random.generate ShuffledTiles (Random.List.shuffle (allPups ++ allPups))
     )
 
 
@@ -61,27 +61,26 @@ type Player
 
 
 type Model
-    = ShufflingPups
-    | WaitForClick GameData
-    | Freeze GameData
-    | GameOver GameData
+    = ShufflingTiles
+    | WaitForClick (GameData Pup Player)
+    | Freeze (GameData Pup Player)
+    | GameOver (GameData Pup Player)
 
 
-type alias GameData =
-    { places : List Tile
-    , currentPlayer : Player
+type alias GameData a b =
+    { tiles : List (Tile a b)
+    , currentPlayer : b
     }
 
 
-type Tile
-    = TakenByMayorGoodway Pup
-    | TakenByMayorHumdinger Pup
-    | Hidden Pup
-    | Open Pup
+type Tile a b
+    = Taken b a
+    | Hidden a
+    | Open a
 
 
 type Msg
-    = ShuffledPups (List Pup)
+    = ShuffledTiles (List Pup)
     | CardClicked Int
     | Turn
     | NewGame
@@ -94,17 +93,27 @@ type GameMode
     | FinishedTotal
 
 
-gameMode : GameData -> GameMode
+gameMode : GameData a b -> GameMode
 gameMode g =
+    let
+        visibleCards : List (Tile a b) -> List a
+        visibleCards =
+            List.filterMap
+                (\place ->
+                    case place of
+                        Open c ->
+                            Just c
+
+                        _ ->
+                            Nothing
+                )
+    in
     if
-        g.places
+        g.tiles
             |> List.all
                 (\x ->
                     case x of
-                        TakenByMayorGoodway _ ->
-                            True
-
-                        TakenByMayorHumdinger _ ->
+                        Taken _ _ ->
                             True
 
                         _ ->
@@ -114,7 +123,7 @@ gameMode g =
         FinishedTotal
 
     else
-        case visibleCards g.places of
+        case visibleCards g.tiles of
             [ x, y ] ->
                 if x == y then
                     TurnWin
@@ -129,9 +138,9 @@ gameMode g =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
-        ( ShufflingPups, ShuffledPups cards ) ->
+        ( ShufflingTiles, ShuffledTiles cards ) ->
             ( WaitForClick
-                { places = cards |> List.map Hidden
+                { tiles = cards |> List.map Hidden
                 , currentPlayer = MayorGoodway
                 }
             , Cmd.none
@@ -140,7 +149,7 @@ update msg model =
         ( WaitForClick g, CardClicked index ) ->
             let
                 newGameData =
-                    { g | places = showCard index g.places }
+                    { g | tiles = showCard index g.tiles }
             in
             case gameMode newGameData of
                 TurnWin ->
@@ -182,7 +191,7 @@ update msg model =
             ( model, Cmd.none )
 
 
-processTurn : GameData -> GameData
+processTurn : GameData a Player -> GameData a Player
 processTurn g =
     let
         gMode =
@@ -193,12 +202,7 @@ processTurn g =
                 (\p ->
                     case ( p, gMode ) of
                         ( Open c, TurnWin ) ->
-                            case g.currentPlayer of
-                                MayorGoodway ->
-                                    TakenByMayorGoodway c
-
-                                MayorHumdinger ->
-                                    TakenByMayorHumdinger c
+                            Taken g.currentPlayer c
 
                         ( Open c, _ ) ->
                             Hidden c
@@ -206,10 +210,10 @@ processTurn g =
                         _ ->
                             p
                 )
-                g.places
+                g.tiles
     in
     { g
-        | places = newPlaces
+        | tiles = newPlaces
         , currentPlayer =
             case gMode of
                 TurnWin ->
@@ -223,7 +227,7 @@ processTurn g =
     }
 
 
-showCard : Int -> List Tile -> List Tile
+showCard : Int -> List (Tile a b) -> List (Tile a b)
 showCard index =
     List.indexedMap
         (\i p ->
@@ -237,19 +241,6 @@ showCard index =
 
             else
                 p
-        )
-
-
-visibleCards : List Tile -> List Pup
-visibleCards =
-    List.filterMap
-        (\place ->
-            case place of
-                Open c ->
-                    Just c
-
-                _ ->
-                    Nothing
         )
 
 
@@ -279,18 +270,22 @@ view model =
             text "unexpected state"
 
 
-viewFinish : GameData -> Html.Html Msg
+viewFinish : GameData a Player -> Html.Html Msg
 viewFinish g =
     div []
         [ text <|
             "Mayor Gutherz: "
                 ++ String.fromInt
-                    ((g.places
+                    ((g.tiles
                         |> List.map
                             (\x ->
                                 case x of
-                                    TakenByMayorGoodway _ ->
-                                        1
+                                    Taken player _ ->
+                                        if player == MayorGoodway then
+                                            1
+
+                                        else
+                                            0
 
                                     _ ->
                                         0
@@ -302,12 +297,16 @@ viewFinish g =
         , text <|
             "Mayor Besserwisser: "
                 ++ String.fromInt
-                    ((g.places
+                    ((g.tiles
                         |> List.map
                             (\x ->
                                 case x of
-                                    TakenByMayorHumdinger _ ->
-                                        1
+                                    Taken player _ ->
+                                        if player == MayorHumdinger then
+                                            1
+
+                                        else
+                                            0
 
                                     _ ->
                                         0
@@ -320,7 +319,7 @@ viewFinish g =
         ]
 
 
-viewGame : GameData -> Html.Html Msg
+viewGame : GameData Pup Player -> Html.Html Msg
 viewGame g =
     div
         [ class "main-container" ]
@@ -330,7 +329,7 @@ viewGame g =
             ]
         , div
             [ class "card-container" ]
-            (g.places |> List.indexedMap viewPlace)
+            (g.tiles |> List.indexedMap viewPlace)
         ]
 
 
@@ -344,29 +343,26 @@ viewAvatar cl active =
         []
 
 
-viewPlace : Int -> Tile -> Html.Html Msg
+viewPlace : Int -> Tile Pup Player -> Html.Html Msg
 viewPlace index place =
     div
         (onClick (CardClicked index)
             :: (case place of
-                    TakenByMayorGoodway _ ->
-                        [ class "card", class "card-missing" ]
-
-                    TakenByMayorHumdinger _ ->
+                    Taken _ _ ->
                         [ class "card", class "card-missing" ]
 
                     Hidden _ ->
                         [ class "card", class "card-hidden" ]
 
                     Open card ->
-                        [ class "card", class <| cardToClass card ]
+                        [ class "card", class <| cssClass card ]
                )
         )
         []
 
 
-cardToClass : Pup -> String
-cardToClass card =
+cssClass : Pup -> String
+cssClass card =
     case card of
         Rubble ->
             "card-rubble"
