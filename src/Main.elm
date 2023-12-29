@@ -4,7 +4,7 @@ import Browser
 import Html exposing (button, div, text)
 import Html.Attributes exposing (class, classList)
 import Html.Events exposing (onClick)
-import Memory exposing (..)
+import Memory exposing (GameData, GameMode(..), Tile(..), gameMode, processTurn, showCard)
 import Process
 import Random
 import Random.List
@@ -79,17 +79,14 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
         ( ShufflingTiles, ShuffledTiles cards ) ->
-            ( WaitForClick
-                { tiles = cards |> List.map Hidden
-                , players = ( MayorGoodway, [ MayorHumdinger ] )
-                }
+            ( WaitForClick <| Memory.init cards ( MayorGoodway, [ MayorHumdinger ] )
             , Cmd.none
             )
 
         ( WaitForClick g, CardClicked index ) ->
             let
                 newGameData =
-                    { g | tiles = showCard index g.tiles }
+                    showCard index g
             in
             case gameMode newGameData of
                 TurnWin ->
@@ -107,7 +104,7 @@ update msg model =
                 NextCard ->
                     ( WaitForClick newGameData, Cmd.none )
 
-                FinishedTotal ->
+                Memory.GameOver ->
                     ( model, Cmd.none )
 
         ( Freeze g, Turn ) ->
@@ -116,11 +113,11 @@ update msg model =
                     processTurn g
             in
             ( case gameMode newGame of
-                FinishedTotal ->
+                Memory.GameOver ->
                     GameOver newGame
 
                 _ ->
-                    WaitForClick <| newGame
+                    WaitForClick newGame
             , Cmd.none
             )
 
@@ -153,7 +150,7 @@ viewFinish g =
         [ text <|
             "Mayor Gutherz: "
                 ++ String.fromInt
-                    ((g.tiles
+                    ((Memory.tiles g
                         |> List.map
                             (\x ->
                                 case x of
@@ -174,7 +171,7 @@ viewFinish g =
         , text <|
             "Mayor Besserwisser: "
                 ++ String.fromInt
-                    ((g.tiles
+                    ((Memory.tiles g
                         |> List.map
                             (\x ->
                                 case x of
@@ -201,12 +198,12 @@ viewGame g =
     div
         [ class "main-container" ]
         [ div [ class "mayor-row" ]
-            [ viewAvatar "goodway" (currentPlayer g.players == MayorGoodway)
-            , viewAvatar "humdinger" (currentPlayer g.players == MayorHumdinger)
+            [ viewAvatar "goodway" (Memory.currentPlayer g == MayorGoodway)
+            , viewAvatar "humdinger" (Memory.currentPlayer g == MayorHumdinger)
             ]
         , div
             [ class "card-container" ]
-            (g.tiles |> List.indexedMap viewPlace)
+            (Memory.tiles g |> List.indexedMap viewPlace)
         ]
 
 

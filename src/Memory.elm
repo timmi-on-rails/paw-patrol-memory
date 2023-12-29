@@ -1,17 +1,31 @@
 -- Abstract memory game model
 
 
-module Memory exposing (..)
+module Memory exposing (GameData, GameMode(..), Tile(..), currentPlayer, gameMode, init, processTurn, showCard, tiles)
 
 
 type alias Nonempty a =
     ( a, List a )
 
 
-type alias GameData a b =
-    { tiles : List (Tile a b)
-    , players : Nonempty b
-    }
+type GameData a b
+    = GameData
+        { tiles : List (Tile a b)
+        , players : Nonempty b
+        }
+
+
+tiles : GameData a b -> List (Tile a b)
+tiles (GameData g) =
+    g.tiles
+
+
+init : List a -> Nonempty b -> GameData a b
+init t players =
+    GameData
+        { tiles = t |> List.map Hidden
+        , players = players
+        }
 
 
 type Tile a b
@@ -24,11 +38,11 @@ type GameMode
     = NextCard
     | TurnWin
     | TurnLoose
-    | FinishedTotal
+    | GameOver
 
 
 gameMode : GameData a b -> GameMode
-gameMode g =
+gameMode (GameData g) =
     let
         visibleCards : List (Tile a b) -> List a
         visibleCards =
@@ -54,7 +68,7 @@ gameMode g =
                             False
                 )
     then
-        FinishedTotal
+        GameOver
 
     else
         case visibleCards g.tiles of
@@ -80,7 +94,7 @@ processTurn g =
                 (\p ->
                     case ( p, gMode ) of
                         ( Open c, TurnWin ) ->
-                            Taken (currentPlayer g.players) c
+                            Taken (currentPlayer g) c
 
                         ( Open c, _ ) ->
                             Hidden c
@@ -88,40 +102,49 @@ processTurn g =
                         _ ->
                             p
                 )
-                g.tiles
+                (tiles g)
+
+        (GameData gd) =
+            g
     in
-    { g
-        | tiles = newPlaces
-        , players =
-            case gMode of
-                TurnLoose ->
-                    next g.players
-
-                _ ->
-                    g.players
-    }
-
-
-currentPlayer : Nonempty a -> a
-currentPlayer =
-    Tuple.first
-
-
-showCard : Int -> List (Tile a b) -> List (Tile a b)
-showCard index =
-    List.indexedMap
-        (\i p ->
-            if i == index then
-                case p of
-                    Hidden c ->
-                        Open c
+    GameData
+        { gd
+            | tiles = newPlaces
+            , players =
+                case gMode of
+                    TurnLoose ->
+                        next gd.players
 
                     _ ->
-                        p
+                        gd.players
+        }
 
-            else
-                p
-        )
+
+currentPlayer : GameData a b -> b
+currentPlayer (GameData a) =
+    a.players |> Tuple.first
+
+
+showCard : Int -> GameData a b -> GameData a b
+showCard index (GameData g) =
+    GameData
+        { g
+            | tiles =
+                g.tiles
+                    |> List.indexedMap
+                        (\i p ->
+                            if i == index then
+                                case p of
+                                    Hidden c ->
+                                        Open c
+
+                                    _ ->
+                                        p
+
+                            else
+                                p
+                        )
+        }
 
 
 next : Nonempty a -> Nonempty a
