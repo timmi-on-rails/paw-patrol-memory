@@ -4,6 +4,7 @@ import Browser
 import Html exposing (button, div, text)
 import Html.Attributes exposing (class, classList)
 import Html.Events exposing (onClick)
+import Memory exposing (..)
 import Process
 import Random
 import Random.List
@@ -67,72 +68,11 @@ type Model
     | GameOver (GameData Pup Player)
 
 
-type alias GameData a b =
-    { tiles : List (Tile a b)
-    , currentPlayer : b
-    }
-
-
-type Tile a b
-    = Taken b a
-    | Hidden a
-    | Open a
-
-
 type Msg
     = ShuffledTiles (List Pup)
     | CardClicked Int
     | Turn
     | NewGame
-
-
-type GameMode
-    = NextCard
-    | TurnWin
-    | TurnLoose
-    | FinishedTotal
-
-
-gameMode : GameData a b -> GameMode
-gameMode g =
-    let
-        visibleCards : List (Tile a b) -> List a
-        visibleCards =
-            List.filterMap
-                (\place ->
-                    case place of
-                        Open c ->
-                            Just c
-
-                        _ ->
-                            Nothing
-                )
-    in
-    if
-        g.tiles
-            |> List.all
-                (\x ->
-                    case x of
-                        Taken _ _ ->
-                            True
-
-                        _ ->
-                            False
-                )
-    then
-        FinishedTotal
-
-    else
-        case visibleCards g.tiles of
-            [ x, y ] ->
-                if x == y then
-                    TurnWin
-
-                else
-                    TurnLoose
-
-            _ ->
-                NextCard
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -141,7 +81,7 @@ update msg model =
         ( ShufflingTiles, ShuffledTiles cards ) ->
             ( WaitForClick
                 { tiles = cards |> List.map Hidden
-                , currentPlayer = MayorGoodway
+                , players = ( MayorGoodway, [ MayorHumdinger ] )
                 }
             , Cmd.none
             )
@@ -189,66 +129,6 @@ update msg model =
 
         _ ->
             ( model, Cmd.none )
-
-
-processTurn : GameData a Player -> GameData a Player
-processTurn g =
-    let
-        gMode =
-            gameMode g
-
-        newPlaces =
-            List.map
-                (\p ->
-                    case ( p, gMode ) of
-                        ( Open c, TurnWin ) ->
-                            Taken g.currentPlayer c
-
-                        ( Open c, _ ) ->
-                            Hidden c
-
-                        _ ->
-                            p
-                )
-                g.tiles
-    in
-    { g
-        | tiles = newPlaces
-        , currentPlayer =
-            case gMode of
-                TurnLoose ->
-                    next g.currentPlayer
-
-                _ ->
-                    g.currentPlayer
-    }
-
-
-showCard : Int -> List (Tile a b) -> List (Tile a b)
-showCard index =
-    List.indexedMap
-        (\i p ->
-            if i == index then
-                case p of
-                    Hidden c ->
-                        Open c
-
-                    _ ->
-                        p
-
-            else
-                p
-        )
-
-
-next : Player -> Player
-next turn =
-    case turn of
-        MayorGoodway ->
-            MayorHumdinger
-
-        MayorHumdinger ->
-            MayorGoodway
 
 
 view : Model -> Html.Html Msg
@@ -321,8 +201,8 @@ viewGame g =
     div
         [ class "main-container" ]
         [ div [ class "mayor-row" ]
-            [ viewAvatar "goodway" (g.currentPlayer == MayorGoodway)
-            , viewAvatar "humdinger" (g.currentPlayer == MayorHumdinger)
+            [ viewAvatar "goodway" (currentPlayer g.players == MayorGoodway)
+            , viewAvatar "humdinger" (currentPlayer g.players == MayorHumdinger)
             ]
         , div
             [ class "card-container" ]
