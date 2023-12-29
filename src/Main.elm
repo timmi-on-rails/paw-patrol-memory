@@ -64,13 +64,7 @@ type Model
     = ShufflingCards
     | WaitForClick GameData
     | Freeze GameData
-    | Finished GameResult
-
-
-type alias GameResult =
-    { mayorGoodway : List Card
-    , mayorHumdinger : List Card
-    }
+    | Finished GameData
 
 
 type alias GameData =
@@ -93,6 +87,45 @@ type Msg
     | NewGame
 
 
+type GameMode
+    = NextCard
+    | TurnWin
+    | TurnLoose
+    | FinishedTotal
+
+
+gameMode : GameData -> GameMode
+gameMode g =
+    if
+        g.places
+            |> List.all
+                (\x ->
+                    case x of
+                        TakenByMayorGoodway _ ->
+                            True
+
+                        TakenByMayorHumdinger _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+    then
+        FinishedTotal
+
+    else
+        case visibleCards g.places of
+            [ x, y ] ->
+                if x == y then
+                    TurnWin
+
+                else
+                    TurnLoose
+
+            _ ->
+                NextCard
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
@@ -109,71 +142,38 @@ update msg model =
                 newGameData =
                     { g | places = showCard index g.places }
             in
-            if List.length (visibleCards newGameData.places) > 1 then
-                ( Freeze newGameData
-                , Task.perform (\_ -> Turn) <|
-                    Process.sleep
-                        (if isMatch newGameData.places then
-                            500
+            case gameMode newGameData of
+                TurnWin ->
+                    ( Freeze newGameData
+                    , Task.perform (\_ -> Turn) <|
+                        Process.sleep 500
+                    )
 
-                         else
-                            2000
-                        )
-                )
+                TurnLoose ->
+                    ( Freeze newGameData
+                    , Task.perform (\_ -> Turn) <|
+                        Process.sleep 2000
+                    )
 
-            else
-                ( WaitForClick newGameData, Cmd.none )
+                NextCard ->
+                    ( WaitForClick newGameData, Cmd.none )
+
+                FinishedTotal ->
+                    ( model, Cmd.none )
 
         ( Freeze g, Turn ) ->
             let
                 newGame =
                     processTurn g
-
-                finished =
-                    newGame.places
-                        |> List.all
-                            (\x ->
-                                case x of
-                                    TakenByMayorGoodway _ ->
-                                        True
-
-                                    TakenByMayorHumdinger _ ->
-                                        True
-
-                                    _ ->
-                                        False
-                            )
             in
-            if finished then
-                ( Finished
-                    { mayorGoodway =
-                        newGame.places
-                            |> List.filterMap
-                                (\x ->
-                                    case x of
-                                        TakenByMayorGoodway c ->
-                                            Just c
+            ( case gameMode newGame of
+                FinishedTotal ->
+                    Finished newGame
 
-                                        _ ->
-                                            Nothing
-                                )
-                    , mayorHumdinger =
-                        newGame.places
-                            |> List.filterMap
-                                (\x ->
-                                    case x of
-                                        TakenByMayorHumdinger c ->
-                                            Just c
-
-                                        _ ->
-                                            Nothing
-                                )
-                    }
-                , Cmd.none
-                )
-
-            else
-                ( WaitForClick <| newGame, Cmd.none )
+                _ ->
+                    WaitForClick <| newGame
+            , Cmd.none
+            )
 
         ( Finished _, NewGame ) ->
             init ()
@@ -185,35 +185,22 @@ update msg model =
 processTurn : GameData -> GameData
 processTurn g =
     let
-        winCard =
-            case visibleCards g.places of
-                [] ->
-                    Nothing
-
-                y :: ys ->
-                    if List.all ((==) y) ys then
-                        Just y
-
-                    else
-                        Nothing
+        gMode =
+            gameMode g
 
         newPlaces =
             List.map
                 (\p ->
-                    case ( p, winCard ) of
-                        ( Open c, Just wc ) ->
-                            if wc == c then
-                                case g.turn of
-                                    MayorGoodway ->
-                                        TakenByMayorGoodway c
+                    case ( p, gMode ) of
+                        ( Open c, TurnWin ) ->
+                            case g.turn of
+                                MayorGoodway ->
+                                    TakenByMayorGoodway c
 
-                                    MayorHumdinger ->
-                                        TakenByMayorHumdinger c
+                                MayorHumdinger ->
+                                    TakenByMayorHumdinger c
 
-                            else
-                                Hidden c
-
-                        ( Open c, Nothing ) ->
+                        ( Open c, _ ) ->
                             Hidden c
 
                         _ ->
@@ -224,12 +211,15 @@ processTurn g =
     { g
         | places = newPlaces
         , turn =
-            case winCard of
-                Just _ ->
-                    g.turn
-
-                Nothing ->
+            case gMode of
+                TurnWin ->
                     next g.turn
+
+                TurnLoose ->
+                    next g.turn
+
+                _ ->
+                    g.turn
     }
 
 
@@ -250,28 +240,17 @@ showCard index =
         )
 
 
-isMatch : List Place -> Bool
-isMatch places =
-    case visibleCards places of
-        x :: y :: _ ->
-            x == y
-
-        _ ->
-            False
-
-
 visibleCards : List Place -> List Card
 visibleCards =
-    List.foldl
-        (\place cards ->
+    List.filterMap
+        (\place ->
             case place of
                 Open c ->
-                    c :: cards
+                    Just c
 
                 _ ->
-                    cards
+                    Nothing
         )
-        []
 
 
 next : Turn -> Turn
@@ -300,11 +279,43 @@ view model =
             text "unexpected state"
 
 
-viewFinish : GameResult -> Html.Html Msg
-viewFinish res =
+viewFinish : GameData -> Html.Html Msg
+viewFinish g =
     div []
-        [ text <| "Mayor Gutherz: " ++ String.fromInt (List.length res.mayorGoodway // 2)
-        , text <| "Mayor Besserwisser: " ++ String.fromInt (List.length res.mayorHumdinger // 2)
+        [ text <|
+            "Mayor Gutherz: "
+                ++ String.fromInt
+                    ((g.places
+                        |> List.map
+                            (\x ->
+                                case x of
+                                    TakenByMayorGoodway _ ->
+                                        1
+
+                                    _ ->
+                                        0
+                            )
+                        |> List.sum
+                     )
+                        // 2
+                    )
+        , text <|
+            "Mayor Besserwisser: "
+                ++ String.fromInt
+                    ((g.places
+                        |> List.map
+                            (\x ->
+                                case x of
+                                    TakenByMayorHumdinger _ ->
+                                        1
+
+                                    _ ->
+                                        0
+                            )
+                        |> List.sum
+                     )
+                        // 2
+                    )
         , button [ onClick NewGame ] [ text "Again" ]
         ]
 
