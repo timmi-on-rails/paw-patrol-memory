@@ -222,8 +222,8 @@ viewTile index tile =
     div
         (onClick (CardClicked index)
             :: (case tile of
-                    Memory.Taken _ _ ->
-                        [ class "card", class "card-missing" ]
+                    Memory.Taken player pup ->
+                        [ class "card", class "card-taken", class <| cssClass pup, class <| cssClassPlayer player ]
 
                     Memory.Hidden _ ->
                         [ class "card", class "card-hidden" ]
@@ -233,6 +233,16 @@ viewTile index tile =
                )
         )
         []
+
+
+cssClassPlayer : Player -> String
+cssClassPlayer p =
+    case p of
+        MayorGoodway ->
+            "card-goodway"
+
+        MayorHumdinger ->
+            "card-humdinger"
 
 
 cssClass : Pup -> String

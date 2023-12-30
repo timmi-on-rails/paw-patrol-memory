@@ -13,15 +13,16 @@
 }
 
 .avatar {
-    border: 5px solid blue;
     height: 150px;
 }
 
 .avatar-humdinger {
+    border: 5px solid blue;
     content: url('images/humdinger.webp');
 }
 
 .avatar-goodway {
+    border: 5px solid red;
     content: url('images/goodway.webp');
 }
 
@@ -37,13 +38,22 @@
 }
 
 .card {
+    box-sizing: border-box;
     border: 1px solid grey;
     width: 125px;
     height: 125px;
 }
 
-.card-missing {
-    border: none !important;
+.card-taken {
+    opacity: 0.25;
+}
+
+.card-goodway {
+    border: 5px solid red !important;
+}
+
+.card-humdinger {
+    border: 5px solid blue !important;
 }
 
 .card-hidden {
